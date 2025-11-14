@@ -28,8 +28,16 @@ interface ProcessedPageSpeedResult {
 
 class PageSpeedServer {
     private server: Server;
+    private apiKey: string | undefined;
 
     constructor() {
+        // Read API key from environment variable
+        this.apiKey = process.env.PAGESPEED_API_KEY;
+
+        if (!this.apiKey) {
+            console.error('[WARNING] PAGESPEED_API_KEY environment variable not set. API requests may be rate limited.');
+        }
+
         this.server = new Server(
             {
                 name: 'pagespeed-server',
@@ -71,9 +79,14 @@ class PageSpeedServer {
                 const { url } = request.params.arguments as { url: string };
 
                 try {
-                    const response = await axios.get<any>(
-                        `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}`
-                    );
+                    // Build API URL with optional API key
+                    let apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}`;
+
+                    if (this.apiKey) {
+                        apiUrl += `&key=${this.apiKey}`;
+                    }
+
+                    const response = await axios.get<any>(apiUrl);
 
                     const result = response.data;
                     const processedResult: ProcessedPageSpeedResult = {
@@ -153,4 +166,4 @@ class PageSpeedServer {
 }
 
 const server = new PageSpeedServer();
-server.run().catch(console.error); 
+server.run().catch(console.error);
